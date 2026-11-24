@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+.vs/
+artifacts/
+TestResults/
+KinoData/
+captures/
+recordings/
+*.user
+*.suo
+*.log
+.env
+.env.*
+!.env.example
+appsettings.Local.json
