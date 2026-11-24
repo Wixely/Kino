@@ -1,5 +1,9 @@
 # Kino
 
+<p align="center">
+  <img src="docs/artwork/kino-amber-crystal.png" alt="Kino amber crystal snowflake" width="280">
+</p>
+
 Kino is a planned screenshot and screen-recording application for Windows, with Linux support to follow. It uses CupriFace and stays in the system tray, ready for quick keyboard-driven captures.
 
 ## Planned workflow

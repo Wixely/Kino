@@ -21,6 +21,7 @@ Source: User request, 2026-11-24.
 - Capture screenshots and record the screen.
 - Preserve Cliptrix's quick-shortcut idea.
 - Use CupriFace and start in the system tray by default.
+- Use a gold/amber theme with an amber-crystal snowflake icon, selected by the user on 2026-11-24. The README uses [the generated artwork](artwork/kino-amber-crystal.png).
 - Use FFmpeg from the system PATH for video rendering, with the managed H.264 engine as a fallback or selectable alternative.
 - Investigate Portal capture reuse and follow the standards of existing CupriFace desktop apps, including Bantz.
 
