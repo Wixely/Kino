@@ -1,9 +1,9 @@
 # Kino implementation plan
 
-- Status: Exploring
+- Status: MVP implemented on Windows; proposals awaiting confirmation
 - Owner: Wixely
 - Created: 2026-11-24
-- Last reviewed: 2026-11-24
+- Last reviewed: 2026-11-25
 - Review date: 2026-12-01, or when the open questions are answered
 - Target date: None
 - Repository: https://github.com/Wixely/Kino
@@ -58,7 +58,7 @@ Allow configurable bindings, conflict reporting, restore defaults and a temporar
 
 ### Screen recording
 
-In video mode, use two-corner selection before recording begins. The working interpretation of the user's 2/3/4 sequence is Ctrl+Numpad2 to mark the first corner, Ctrl+Numpad3 to mark the second corner and start recording, and Ctrl+Numpad4 to stop. Key 3 starting recording is confirmed; the modifier, numpad use and other key assignments follow the existing shortcut context. Make image/video mode explicit so these overlapping bindings cannot trigger the wrong action.
+Video uses two-corner selection before recording begins, on its own keys (confirmed 2026-11-25): Ctrl+Numpad4 marks the first corner, Ctrl+Numpad5 marks the second corner and starts recording, and Ctrl+Numpad6 stops and asks whether to include audio. Choosing renders the video and copies its path. Screenshot and video keys no longer overlap, so no image/video mode is needed.
 
 Show a red frame around the selected region while recording, enabled by default with an option to disable it. Keep the frame out of recorded pixels. A tray recording indicator and elapsed time remain available when the frame is disabled. The image workflow remains free of a full-screen selection overlay. Pause/resume, countdown, cursor inclusion and window/monitor presets remain proposed additions.
 
@@ -185,20 +185,24 @@ Development conventions are recorded in [development.md](development.md).
 
 Dates remain TBD until scope is settled.
 
+### Progress
+
+As of 2026-11-25 the MVP covers M1 and most of M2 on Windows. The solution has `Kino.Core` (workflow, geometry, manifest, settings), `Kino.Media.FFmpeg` (discovery, capability probe, staging encoder, render and ffprobe validation), `Kino.Platform.Windows` (GDI capture, hotkeys, clipboard, tray, overlays, WASAPI audio) and `Kino.App` (CupriFace UI), hosted by `Kino.Windows`. The capture code lives in Kino for now; extracting a shared package with Portal is M4 work.
+
+M1 and M2 exit conditions not yet met: mixed-DPI and display hot-plug tests, audio capture from real devices, and a 30-minute recording. See the README for what has been measured.
+
 ## Next actions
 
-1. Agent: specify image/video mode switching and compact-keyboard bindings around the agreed workflows. Review by 2026-12-01.
-2. Agent: resolve temporary recording storage and managed-backend audio/container capabilities, including the WebM limitation. Review by 2026-12-01.
-3. Agent: prepare a capture/encoder feasibility spike and package-boundary proposal as the first implementation work after planning. Due TBD.
-4. Agent: add the solution, local debug configuration and first vertical slice after the feasibility decisions. Due TBD.
-
-Recommended next action: prove two-corner capture and a temporary recording that renders to the three required containers with selected, ordered audio tracks and correct cleanup. Crop, trim, conversion and uploads follow the MVP.
+1. User: confirm or revise the [MVP implementation choices](decisions/2026-11-25-mvp-implementation-choices.md), in particular state-based shortcut meaning, the compact layout and deleting the staging video after a successful render.
+2. Agent: verify system-audio and microphone capture on a machine with audio devices, including A/V alignment against the 100 ms target.
+3. Agent: run a 30-minute recording with busy content, measure staging bitrate and disk use, and test display changes during recording.
+4. Agent: evaluate trimming and NativeAOT against the untrimmed baseline (52 MB single file).
+5. Agent: prepare the managed-backend spike (M3) and the shared-capture package boundary (M4).
 
 ## Open questions
 
-- How should users switch image/video mode while keeping the overlapping shortcuts predictable?
-- What temporary video format and storage budget best support deferred rendering? Should temporary video be deleted alongside audio after success?
-- Which compact-keyboard bindings should accompany the Ctrl+numpad defaults?
+- Are the state-based shortcut meanings predictable enough, or is an explicit image/video mode still wanted?
+- Is the Ctrl+Alt+digit compact layout acceptable?
 - What reduced capability, if any, is acceptable when FFmpeg is unavailable?
 - Which Linux desktop environment should be targeted after Windows?
 
@@ -206,4 +210,5 @@ Recommended next action: prove two-corner capture and a temporary recording that
 
 - [MVP capture workflow and audio handling](decisions/2026-11-24-capture-workflow-and-audio.md): confirmed selection-first workflow, shortcut behavior, silent export default and deferred editing/conversion.
 - [Recording controls and final rendering](decisions/2026-11-24-recording-and-rendering.md): resolves multi-track rendering, temporary-audio cleanup, output containers and deferred configurable uploads.
+- [MVP implementation choices](decisions/2026-11-25-mvp-implementation-choices.md): proposed answers to mode switching, compact bindings, temporary storage, staging-video cleanup and the FFmpeg-absent behaviour, as implemented.
 - Architecture and remaining scope choices are proposals. Preserve decisions with new dated records when requirements change.

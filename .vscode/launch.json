@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Starts in the tray, as an installed copy would. Settings and temporary recordings go to
+      // artifacts/dev-data, so a debug session never touches the per-user folder.
+      "name": "Kino: debug",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Kino: build",
+      "program": "${workspaceFolder}/src/Kino.Windows/bin/Debug/net10.0-windows10.0.17763.0/win-x64/Kino.exe",
+      "args": ["--data-root", "${workspaceFolder}/artifacts/dev-data", "--show", "--allow-multiple-instances"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Kino: recording self-test",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Kino: build",
+      "program": "${workspaceFolder}/src/Kino.Windows/bin/Debug/net10.0-windows10.0.17763.0/win-x64/Kino.exe",
+      "args": ["--selftest-record", "${workspaceFolder}/artifacts/test-results/selftest-record.txt", "--seconds", "4", "--data-root", "${workspaceFolder}/artifacts/selftest-data"],
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": false
+    }
+  ]
+}

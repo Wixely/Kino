@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Kino.App</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CupriFace" Version="0.46.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Kino.Core/Kino.Core.csproj" />
+  </ItemGroup>
+  <!-- Markup, styles and images are embedded under Assets/ so the single-file executable carries them. -->
+  <ItemGroup>
+    <None Remove="Assets\**\*" />
+    <EmbeddedResource Include="Assets\**\*">
+      <LogicalName>Assets/$([System.String]::Copy('%(RecursiveDir)').Replace('\','/'))%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>

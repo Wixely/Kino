@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Kino.Core/Kino.Core.csproj" />
+    <Project Path="src/Kino.Media/Kino.Media.csproj" />
+    <Project Path="src/Kino.Media.FFmpeg/Kino.Media.FFmpeg.csproj" />
+    <Project Path="src/Kino.Platform.Windows/Kino.Platform.Windows.csproj" />
+    <Project Path="src/Kino.App/Kino.App.csproj" />
+    <Project Path="src/Kino.Windows/Kino.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Kino.Tests/Kino.Tests.csproj" />
+  </Folder>
+</Solution>

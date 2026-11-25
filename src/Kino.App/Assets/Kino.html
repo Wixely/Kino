@@ -1,0 +1,207 @@
+<main class="app-shell">
+  <header>
+    <cupri-image class="brand-icon" src="Assets/KinoIcon.png" fit="contain" alt="Kino amber crystal snowflake"></cupri-image>
+    <div class="brand-copy">
+      <h1>Kino</h1>
+      <p>Click-free screenshots and screen recording</p>
+    </div>
+    <div class="header-actions">
+      <div class="state-pill {{StateClass}}" aria-live="polite">{{StateLabel}}</div>
+      <div class="icon-control nav-settings" role="button" aria-label="Open settings" style="display:{{HomeDisplay}}">
+        <cupri-icon name="settings" size="22"></cupri-icon>
+      </div>
+      <div class="text-control hide-window" role="button" aria-label="Hide Kino to the tray">Hide</div>
+    </div>
+  </header>
+
+  <section class="home-page" style="display:{{HomeDisplay}}">
+    <p class="status" aria-live="polite">{{Status}}</p>
+
+    <section class="card shortcuts-card">
+      <div class="card-heading"><span>Shortcuts</span></div>
+      <div class="shortcut-row" data-repeat="ShortcutRows">
+        <span class="keycap">{{Keys}}</span>
+        <span class="shortcut-action">{{Action}}</span>
+      </div>
+      <div class="note warning" style="display:{{ShortcutWarningDisplay}}">{{ShortcutWarning}}</div>
+      <p class="hint">Keep Control held and move the pointer between keys. Esc cancels a selection.</p>
+    </section>
+
+    <section class="card unfinished-card" style="display:{{UnfinishedDisplay}}">
+      <div class="card-heading"><span>Unfinished recordings</span></div>
+      <div class="list-row" data-repeat="UnfinishedRows">
+        <div class="list-copy"><strong>{{Title}}</strong><span>{{Detail}}</span></div>
+        <cupri-button variant="ghost" data-finish-session="{{Id}}">Finish</cupri-button>
+        <cupri-button variant="ghost" data-discard-session="{{Id}}">Discard</cupri-button>
+      </div>
+    </section>
+
+    <section class="card recent-card" style="display:{{RecentDisplay}}">
+      <div class="card-heading"><span>Recent files</span></div>
+      <div class="list-row" data-repeat="RecentRows">
+        <span class="kind-badge">{{Kind}}</span>
+        <div class="list-copy"><strong>{{Name}}</strong></div>
+        <cupri-button variant="ghost" data-reveal="{{Path}}">Show</cupri-button>
+      </div>
+    </section>
+
+    <footer>
+      <span class="ffmpeg {{FfmpegClass}}">{{FfmpegStatus}}</span>
+      <span class="version">v{{AppVersion}}</span>
+    </footer>
+  </section>
+
+  <section class="finish-page" style="display:{{FinishDisplay}}">
+    <div class="page-heading">
+      <span class="eyebrow">FINISH RECORDING</span>
+      <h2>{{FinishTitle}}</h2>
+      <p>{{FinishDetail}}</p>
+    </div>
+    <div class="note warning" style="display:{{FinishWarningDisplay}}">{{FinishWarning}}</div>
+
+    <div class="finish-actions primary" style="display:{{FinishActionsDisplay}}">
+      <cupri-button class="render-with-audio" style="display:{{WithAudioDisplay}}">Save with audio</cupri-button>
+      <cupri-button class="render-silent">Save without audio</cupri-button>
+    </div>
+    <p class="hint">The saved file's path is copied to the clipboard.</p>
+
+    <div class="note error" style="display:{{FinishErrorDisplay}}">{{FinishError}}</div>
+
+    <section class="render-progress" style="display:{{RenderDisplay}}">
+      <span>{{RenderStage}}</span>
+      <cupri-progress value="{{RenderPercent}}" max="100" aria-label="Render progress"></cupri-progress>
+      <cupri-button variant="ghost" class="render-cancel">Cancel</cupri-button>
+    </section>
+
+    <section class="card">
+      <div class="card-heading"><span>Format</span></div>
+      <div class="format-row">
+        <div class="format-choice {{Mp4Class}}" role="button" data-format="Mp4">MP4<small>H.264 · AAC</small></div>
+        <div class="format-choice {{MkvClass}}" role="button" data-format="Mkv">MKV<small>H.264 · AAC</small></div>
+        <div class="format-choice {{WebMClass}}" role="button" data-format="WebM">WebM<small>VP9 · Opus</small></div>
+      </div>
+    </section>
+
+    <section class="card tracks-card">
+      <div class="card-heading"><span>Audio tracks</span></div>
+      <div class="track-row {{RowClass}}" data-repeat="TrackRows">
+        <div class="track-toggle" role="button" data-toggle-track="{{Id}}">{{IncludedLabel}}</div>
+        <div class="list-copy"><strong>{{Label}}</strong><span>{{Detail}}</span></div>
+        <span class="track-position">{{Position}}</span>
+        <div class="track-moves" style="display:{{MoveDisplay}}">
+          <div class="move-control" role="button" aria-label="Move track up" data-track-up="{{Id}}">▲</div>
+          <div class="move-control" role="button" aria-label="Move track down" data-track-down="{{Id}}">▼</div>
+        </div>
+      </div>
+      <p class="hint" style="display:{{TracksEmptyDisplay}}">Audio capture was turned off for this recording.</p>
+      <p class="hint">{{TrackSummary}} Every temporary audio source, included or not, is deleted after the video is saved.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-heading"><span>Save as</span></div>
+      <cupri-textfield class="path-field" value="{{OutputPath}}" aria-label="Output file"></cupri-textfield>
+    </section>
+
+    <div class="finish-actions" style="display:{{FinishActionsDisplay}}">
+      <cupri-button variant="ghost" class="finish-later">Finish later</cupri-button>
+      <cupri-button variant="ghost" class="discard">{{DiscardLabel}}</cupri-button>
+    </div>
+  </section>
+
+  <section class="settings-page" style="display:{{SettingsDisplay}}">
+    <div class="page-heading row">
+      <div><span class="eyebrow">SETTINGS</span><h2>Kino settings</h2></div>
+      <div class="text-control nav-home" role="button" aria-label="Back to Kino">Back</div>
+    </div>
+    <div class="settings-scroll">
+      <section class="card">
+        <div class="card-heading"><span>Capture</span></div>
+        <div class="setting"><span>Shortcuts enabled</span><cupri-switch checked="{{ShortcutsEnabled}}" aria-label="Shortcuts enabled"></cupri-switch></div>
+        <div class="setting"><span>Show the preview window while selecting</span><cupri-switch checked="{{ShowCornerPreview}}" aria-label="Show the preview window while selecting"></cupri-switch></div>
+        <div class="setting"><span>Red frame around the recording</span><cupri-switch checked="{{ShowRecordingFrame}}" aria-label="Recording frame"></cupri-switch></div>
+        <div class="setting"><span>Include the mouse pointer in screenshots</span><cupri-switch checked="{{IncludeCursorInScreenshots}}" aria-label="Include the mouse pointer in screenshots"></cupri-switch></div>
+        <div class="setting"><span>Include the mouse pointer in videos</span><cupri-switch checked="{{IncludeCursor}}" aria-label="Include the mouse pointer in videos"></cupri-switch></div>
+        <div class="setting"><span>Recording mode</span>
+          <cupri-select class="setting-select wide" value="{{RecordingMode}}" open="{{RecordingModeOpen}}" aria-label="Recording mode">
+            <cupri-option value="JpegDelta">JPEG delta (changes only)</cupri-option>
+            <cupri-option value="Jpeg">JPEG (every frame)</cupri-option>
+            <cupri-option value="Lossless">Lossless (needs ffmpeg)</cupri-option>
+          </cupri-select>
+        </div>
+        <div class="setting" style="display:{{JpegQualityDisplay}}"><span>JPEG quality</span>
+          <cupri-select class="setting-select" value="{{JpegQuality}}" open="{{JpegQualityOpen}}" aria-label="JPEG quality">
+            <cupri-option value="75">75</cupri-option>
+            <cupri-option value="85">85</cupri-option>
+            <cupri-option value="90">90</cupri-option>
+            <cupri-option value="95">95</cupri-option>
+          </cupri-select>
+        </div>
+        <div class="setting"><span>Frame rate</span>
+          <cupri-select class="setting-select" value="{{FrameRate}}" open="{{FrameRateOpen}}" aria-label="Frame rate">
+            <cupri-option value="15">15 fps</cupri-option>
+            <cupri-option value="24">24 fps</cupri-option>
+            <cupri-option value="30">30 fps</cupri-option>
+            <cupri-option value="60">60 fps</cupri-option>
+          </cupri-select>
+        </div>
+        <div class="setting"><span>Key layout</span>
+          <div class="segmented" role="radiogroup" aria-label="Key layout">
+            <div class="segment {{NumpadLayoutClass}}" role="radio" data-layout="numpad">Ctrl + numpad 1–6</div>
+            <div class="segment {{CompactLayoutClass}}" role="radio" data-layout="compact">Ctrl + Alt + 1–6</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-heading"><span>Audio</span></div>
+        <div class="setting"><span>Record system audio</span><cupri-switch checked="{{RecordSystemAudio}}" aria-label="Record system audio"></cupri-switch></div>
+        <div class="setting"><span>Record the microphone</span><cupri-switch checked="{{RecordMicrophone}}" aria-label="Record microphone"></cupri-switch></div>
+        <div class="setting"><span>Microphone</span>
+          <cupri-select class="setting-select wide" value="{{MicrophoneId}}" open="{{MicrophoneOpen}}" aria-label="Microphone">
+            <cupri-option value="{{Value}}" data-repeat="MicrophoneOptions">{{Label}}</cupri-option>
+          </cupri-select>
+        </div>
+        <div class="setting"><span>Tracks for "Save with audio"</span>
+          <cupri-select class="setting-select wide" value="{{DefaultAudio}}" open="{{DefaultAudioOpen}}" aria-label="Default audio tracks">
+            <cupri-option value="System">System audio</cupri-option>
+            <cupri-option value="Microphone">Microphone</cupri-option>
+            <cupri-option value="Both">System audio and microphone</cupri-option>
+          </cupri-select>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-heading"><span>Output</span></div>
+        <div class="setting"><span>When recording stops</span>
+          <cupri-select class="setting-select wide" value="{{AfterRecording}}" open="{{AfterRecordingOpen}}" aria-label="When recording stops">
+            <cupri-option value="Ask">Ask whether to include audio</cupri-option>
+            <cupri-option value="SaveWithAudio">Always save with audio</cupri-option>
+            <cupri-option value="SaveWithoutAudio">Always save without audio</cupri-option>
+          </cupri-select>
+        </div>
+        <div class="setting"><span>Default format</span>
+          <cupri-select class="setting-select" value="{{DefaultFormat}}" open="{{DefaultFormatOpen}}" aria-label="Default format">
+            <cupri-option value="Mp4">MP4</cupri-option>
+            <cupri-option value="Mkv">MKV</cupri-option>
+            <cupri-option value="WebM">WebM</cupri-option>
+          </cupri-select>
+        </div>
+        <div class="setting column"><span>Screenshot folder</span>
+          <div class="field-row"><cupri-textfield class="path-field" value="{{ImageFolder}}" aria-label="Screenshot folder"></cupri-textfield><cupri-button variant="ghost" class="open-image-folder">Open</cupri-button></div>
+        </div>
+        <div class="setting column"><span>Video folder</span>
+          <div class="field-row"><cupri-textfield class="path-field" value="{{VideoFolder}}" aria-label="Video folder"></cupri-textfield><cupri-button variant="ghost" class="open-video-folder">Open</cupri-button></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-heading"><span>Rendering</span></div>
+        <div class="setting column"><span>ffmpeg executable (empty searches PATH)</span>
+          <div class="field-row"><cupri-textfield class="path-field" value="{{FfmpegPath}}" placeholder="ffmpeg on PATH" aria-label="ffmpeg path"></cupri-textfield><cupri-button variant="ghost" class="detect-ffmpeg">Detect</cupri-button></div>
+        </div>
+        <p class="ffmpeg {{FfmpegClass}}">{{FfmpegStatus}}</p>
+        <p class="hint">Kino data: {{StoragePath}}</p>
+      </section>
+    </div>
+  </section>
+</main>

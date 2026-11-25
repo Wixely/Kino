@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Kino: build",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "Kino.slnx", "-c", "Debug"],
+      "problemMatcher": "$msCompile",
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Kino: test",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test", "Kino.slnx", "-c", "Debug"],
+      "problemMatcher": "$msCompile",
+      "group": "test"
+    },
+    {
+      "label": "Kino: UI snapshots",
+      "detail": "Renders each page with synthetic content into artifacts/snapshots",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+        "$exe='${workspaceFolder}/src/Kino.Windows/bin/Debug/net10.0-windows10.0.17763.0/win-x64/Kino.exe'; foreach ($p in 'home','finish','settings','unfinished','recording') { & $exe --snapshot \"${workspaceFolder}/artifacts/snapshots/$p.png\" --page $p --data-root \"${workspaceFolder}/artifacts/snapshot-data\" --doctor \"${workspaceFolder}/artifacts/snapshots/$p-doctor.txt\" | Out-Null }"
+      ],
+      "dependsOn": "Kino: build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Kino: package",
+      "detail": "Publishes the single-file executable and runs its self-tests",
+      "type": "process",
+      "command": "powershell",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/eng/Package.ps1"],
+      "problemMatcher": []
+    }
+  ]
+}

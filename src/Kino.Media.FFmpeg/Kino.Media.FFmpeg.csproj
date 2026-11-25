@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Kino.Media.FFmpeg</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Kino.Core/Kino.Core.csproj" />
+    <ProjectReference Include="../Kino.Media/Kino.Media.csproj" />
+  </ItemGroup>
+</Project>
