@@ -23,6 +23,7 @@ jobs:
   release:
     name: Build and release (Windows x64)
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
@@ -51,9 +52,11 @@ jobs:
         shell: pwsh
         run: choco install ffmpeg -y --no-progress
       - name: Format, audit, build and test
+        timeout-minutes: 20
         shell: pwsh
         run: ./eng/Verify.ps1
       - name: Publish and run the executable's self-tests
+        timeout-minutes: 15
         shell: pwsh
         run: ./eng/Package.ps1 -Version '${{ steps.version.outputs.version }}'
       - name: Upload test evidence

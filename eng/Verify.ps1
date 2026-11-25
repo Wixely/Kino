@@ -28,7 +28,9 @@ try {
 
     $results = Join-Path $repoRoot 'artifacts/test-results'
     New-Item -ItemType Directory -Force $results | Out-Null
-    dotnet test tests/Kino.Tests/Kino.Tests.csproj -c $Configuration --no-build --logger 'trx;LogFileName=Kino.Tests.trx' --results-directory $results
+    # A test that hangs is killed after ten minutes and named in the results, instead of stalling CI.
+    dotnet test tests/Kino.Tests/Kino.Tests.csproj -c $Configuration --no-build --logger 'trx;LogFileName=Kino.Tests.trx' --results-directory $results `
+        --blame-hang-timeout 10m --blame-hang-dump-type none
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 }
 finally {

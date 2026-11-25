@@ -18,6 +18,7 @@ jobs:
   windows:
     name: Build, test and package (Windows x64)
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
@@ -35,9 +36,11 @@ jobs:
         shell: pwsh
         run: choco install ffmpeg -y --no-progress
       - name: Format, audit, build and test
+        timeout-minutes: 20
         shell: pwsh
         run: ./eng/Verify.ps1
       - name: Publish and run the executable's self-tests
+        timeout-minutes: 15
         shell: pwsh
         run: ./eng/Package.ps1
       - name: Upload test evidence
