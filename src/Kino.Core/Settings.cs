@@ -64,6 +64,10 @@ public sealed class KinoSettings
     /// <summary>Whether recordings show the mouse pointer.</summary>
     public bool IncludeCursor { get; set; } = true;
 
+    /// <summary>Whether the recording region moves to follow the mouse pointer, keeping its selected
+    /// size. See <see cref="CursorFollower"/>.</summary>
+    public bool FollowCursor { get; set; }
+
     /// <summary>Whether screenshots show the mouse pointer. Off by default because the pointer is
     /// always at the far corner when the screenshot is taken.</summary>
     public bool IncludeCursorInScreenshots { get; set; }

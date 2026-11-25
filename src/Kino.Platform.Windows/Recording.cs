@@ -215,7 +215,10 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
             AddTrack(manifest, audio, sessionDirectory, "microphone", AudioSourceKind.Microphone, "Microphone", () => OpenMicrophone(settings.MicrophoneDeviceId));
         }
 
-        var active = new ActiveRecording(manifest, video, audio);
+        var follower = settings.FollowCursor && Native.GetCursorPos(out var pointer)
+            ? new CursorFollower(region, Native.VirtualScreen(), new PixelPoint(pointer.X, pointer.Y))
+            : null;
+        var active = new ActiveRecording(manifest, video, audio, region, follower);
         try
         {
             foreach (var (track, recorder) in audio)
@@ -291,23 +294,31 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
         private readonly RecordingManifest _manifest;
         private readonly IVideoPipeline _video;
         private readonly List<(RecordedAudioTrack Track, AudioTrackRecorder Recorder)> _audio;
+        private readonly CursorFollower? _follower;
         private readonly TaskCompletionSource _firstFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly Stopwatch _elapsed = new();
         private Thread? _thread;
         private volatile bool _stopRequested;
+        private PixelRect _region;
+        private long _lastCapture;
         private long _videoOrigin;
         private long _frames;
         private long _repeated;
         private string? _failure;
 
-        public ActiveRecording(RecordingManifest manifest, IVideoPipeline video, List<(RecordedAudioTrack, AudioTrackRecorder)> audio)
+        public ActiveRecording(RecordingManifest manifest, IVideoPipeline video, List<(RecordedAudioTrack, AudioTrackRecorder)> audio,
+            PixelRect region, CursorFollower? follower)
         {
             _manifest = manifest;
             _video = video;
             _audio = audio;
+            _region = region;
+            _follower = follower;
         }
 
         public TimeSpan Elapsed => _elapsed.Elapsed;
+
+        public event Action<PixelRect>? RegionMoved;
 
         public Task StartVideoAsync()
         {
@@ -360,7 +371,7 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
 
             _manifest.FramesWritten = _frames;
             _manifest.FramesRepeated = _repeated + _video.Dropped;
-            _manifest.CaptureDetails = _video.Details;
+            _manifest.CaptureDetails = _follower is null ? _video.Details : $"{_video.Details}; the region followed the pointer";
             _manifest.DurationSeconds = _frames / (double)_manifest.FrameRate;
             _manifest.LastError = _failure ?? videoFailure;
         }
@@ -411,7 +422,7 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
                         }
                     }
 
-                    _video.Capture(_frames);
+                    _video.Capture(_frames, NextRegion());
                     if (_frames == 0)
                     {
                         _videoOrigin = Stopwatch.GetTimestamp();
@@ -438,6 +449,25 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
                 _ = Native.timeEndPeriod(1);
             }
         }
+
+        /// <summary>The region for the frame about to be captured: fixed, or moved towards the
+        /// pointer by the time since the previous capture.</summary>
+        private PixelRect NextRegion()
+        {
+            var now = Stopwatch.GetTimestamp();
+            if (_follower is not null && _lastCapture != 0 && Native.GetCursorPos(out var pointer))
+            {
+                var region = _follower.Next(new PixelPoint(pointer.X, pointer.Y), Stopwatch.GetElapsedTime(_lastCapture, now));
+                if (region != _region)
+                {
+                    _region = region;
+                    RegionMoved?.Invoke(region);
+                }
+            }
+
+            _lastCapture = now;
+            return _region;
+        }
     }
 
     /// <summary>Captures and stores video frames for one recording, called from the capture thread.</summary>
@@ -449,8 +479,9 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
         /// <summary>How frames were captured and stored, for diagnostics.</summary>
         string Details { get; }
 
-        /// <summary>Captures and stores the frame for <paramref name="slot"/>.</summary>
-        void Capture(long slot);
+        /// <summary>Captures and stores the frame for <paramref name="slot"/> from
+        /// <paramref name="region"/>, which keeps the recording's size but may move between frames.</summary>
+        void Capture(long slot, PixelRect region);
 
         /// <summary>Stores a repeat of the previous frame for a slot that capture missed.</summary>
         void Repeat(long slot);
@@ -462,7 +493,6 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
     /// <summary>GDI frames piped to ffmpeg as lossless H.264, every slot written.</summary>
     private sealed class LosslessPipeline : IVideoPipeline
     {
-        private readonly PixelRect _region;
         private readonly bool _includeCursor;
         private readonly StagingEncoder _encoder;
         private readonly GdiFrameGrabber _grabber;
@@ -470,7 +500,6 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
 
         public LosslessPipeline(PixelRect region, bool includeCursor, StagingEncoder encoder)
         {
-            _region = region;
             _includeCursor = includeCursor;
             _encoder = encoder;
             _grabber = new GdiFrameGrabber(region.Width, region.Height);
@@ -480,12 +509,12 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
 
         public string Details => "GDI capture, lossless H.264 through ffmpeg";
 
-        public void Capture(long slot)
+        public void Capture(long slot, PixelRect region)
         {
             ReadOnlySpan<byte> frame;
             try
             {
-                frame = _grabber.Grab(_region.X, _region.Y, _includeCursor);
+                frame = _grabber.Grab(region.X, region.Y, _includeCursor);
             }
             catch (InvalidOperationException) when (_last is not null)
             {
@@ -539,14 +568,14 @@ public sealed class WindowsScreenRecorder : IScreenRecorder
         public string Details => string.Create(System.Globalization.CultureInfo.InvariantCulture,
             $"{_source.Backend} capture ({_source.GdiFrames} frames through GDI); {_writer.FullFrames} full JPEG frames, {_writer.PatchFrames} patches, {_writer.UnchangedFrames} unchanged, {Dropped} dropped; {_writer.Bytes / 1024} KB");
 
-        public void Capture(long slot)
+        public void Capture(long slot, PixelRect region)
         {
             if (_failure is { } failure)
             {
                 throw new IOException($"The temporary video could not be written: {failure.Message}", failure);
             }
 
-            var (frame, damage) = _source.Next();
+            var (frame, damage) = _source.Next(region);
             // A dropped frame's changes are missing from the next frame's report, so that report cannot
             // be trusted.
             if (!_queue.TryAdd((slot, frame, _damageLost ? null : damage)))

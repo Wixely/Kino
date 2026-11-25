@@ -512,15 +512,22 @@ internal sealed class RegionFrameSource : IDisposable
     public long GdiFrames { get; private set; }
 
     /// <summary>The next frame and where it changed (null when unknown).</summary>
-    public (RawFrame Frame, IReadOnlyList<PixelRect>? Damage) Next()
+    /// <param name="region">Where to capture. It has the size given to the constructor but may move
+    /// between calls; after a move the damage is unknown.</param>
+    public (RawFrame Frame, IReadOnlyList<PixelRect>? Damage) Next(PixelRect region)
     {
-        if (TryDuplication() is { } captured)
+        if (region.Width != _region.Width || region.Height != _region.Height)
+        {
+            throw new ArgumentException("The region cannot change size during a recording.", nameof(region));
+        }
+
+        if (TryDuplication(region) is { } captured)
         {
             // After GDI frames, duplication's change report describes changes since its own last
             // frame, not since the frame the caller holds.
             var damage = Backend == DuplicationName ? captured.Damage : null;
             Backend = DuplicationName;
-            return WithCursor(captured.Frame, damage);
+            return WithCursor(captured.Frame, damage, region);
         }
 
         Backend = "GDI";
@@ -529,7 +536,7 @@ internal sealed class RegionFrameSource : IDisposable
         RawFrame frame;
         try
         {
-            frame = new RawFrame(_region.Width, _region.Height, _gdi.Grab(_region.X, _region.Y, _includeCursor).ToArray());
+            frame = new RawFrame(_region.Width, _region.Height, _gdi.Grab(region.X, region.Y, _includeCursor).ToArray());
         }
         catch (InvalidOperationException) when (_last is not null)
         {
@@ -549,7 +556,7 @@ internal sealed class RegionFrameSource : IDisposable
         _cursor?.Dispose();
     }
 
-    private (RawFrame Frame, IReadOnlyList<PixelRect>? Damage)? TryDuplication()
+    private (RawFrame Frame, IReadOnlyList<PixelRect>? Damage)? TryDuplication(PixelRect region)
     {
         if (_duplicationUnsupported || DateTime.UtcNow < _retryAt)
         {
@@ -559,11 +566,16 @@ internal sealed class RegionFrameSource : IDisposable
         try
         {
             _duplication ??= new DesktopDuplicationCapture();
-            return _duplication.Capture(_region);
+            return _duplication.Capture(region);
+        }
+        catch (NotSupportedException) when (region == _region)
+        {
+            _duplicationUnsupported = true;
         }
         catch (NotSupportedException)
         {
-            _duplicationUnsupported = true;
+            // A region that follows the pointer can pass over a rotated output or another adapter's
+            // output for a while; GDI covers it there and duplication is retried.
         }
         catch (Exception exception) when (exception is SharpGen.Runtime.SharpGenException or InvalidOperationException or COMException)
         {
@@ -576,7 +588,7 @@ internal sealed class RegionFrameSource : IDisposable
         return null;
     }
 
-    private (RawFrame Frame, IReadOnlyList<PixelRect>? Damage) WithCursor(RawFrame frame, IReadOnlyList<PixelRect>? damage)
+    private (RawFrame Frame, IReadOnlyList<PixelRect>? Damage) WithCursor(RawFrame frame, IReadOnlyList<PixelRect>? damage, PixelRect region)
     {
         if (_cursor is null)
         {
@@ -586,7 +598,7 @@ internal sealed class RegionFrameSource : IDisposable
 
         // Duplication frames are shared with the capture, so the pointer goes on a copy.
         var painted = frame with { Bgra = (byte[])frame.Bgra.Clone() };
-        var box = _cursor.Paint(painted, _region);
+        var box = _cursor.Paint(painted, region);
         if (damage is not null)
         {
             var merged = new List<PixelRect>(damage);

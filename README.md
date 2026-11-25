@@ -4,7 +4,44 @@
   <img src="docs/artwork/kino-amber-crystal.png" alt="Kino amber crystal snowflake" width="280">
 </p>
 
-Kino is a screenshot and screen-recording application for Windows, with Linux support to follow. It uses CupriFace, stays in the system tray and captures with keyboard shortcuts, without clicking or dragging.
+Kino is a screenshot and screen-recording application for Windows, with Linux support to follow. It uses CupriFace, stays in the system tray and captures with keyboard shortcuts, without clicking or dragging. It replaces [WebMCam](https://github.com/Wixely/WebMCam).
+
+<p align="center">
+  <img src="docs/screenshots/home.png" alt="Kino's main window with the six capture shortcuts and recent files" width="32%">
+  <img src="docs/screenshots/finish.png" alt="Choosing audio, format and track order after a recording" width="32%">
+  <img src="docs/screenshots/settings.png" alt="Kino's capture settings" width="32%">
+</p>
+
+## Features
+
+**Capture without the mouse**
+- Six shortcuts cover everything: mark two corners with the pointer for a screenshot or a video, save the last screenshot and stop recording. Esc cancels a selection.
+- Ctrl+Numpad 1–6 by default, or Ctrl+Alt+1–6 for keyboards without a numeric keypad.
+- While you select, a preview panel on the main monitor shows the whole region so far, scaled to fit, with its size. It fades when the pointer is over it and can be turned off.
+- Works across several monitors at mixed scaling, including regions that span monitors.
+
+**Screenshots**
+- Copied to the clipboard straight away, as a bitmap and as PNG.
+- One key saves the last screenshot as a PNG and copies its path, ready to paste into a chat or a ticket.
+- Mouse pointer included or left out (left out by default).
+
+**Screen recording**
+- Records the selected region at 15, 24, 30 or 60 fps, with an optional red frame around it that never appears in the video.
+- **Follow the mouse pointer:** the region keeps its size and glides after the pointer like a camera, with a still zone in the middle and smooth starts and stops.
+- Three recording modes: JPEG delta (only what changed, the default), JPEG (every frame) or lossless. The JPEG modes record without ffmpeg.
+- Mouse pointer included or left out (included by default).
+
+**Audio, formats and saving**
+- Records system audio and the microphone as separate tracks.
+- When you stop, choose **Save with audio** or **Save without audio**, or set Kino to always do one of them.
+- Saves MP4 or MKV (H.264 and AAC) or WebM (VP9 and Opus). Choose which audio tracks to include and their order, and change the file name.
+- The saved file's path is copied to the clipboard. If the window was minimised, it goes back to minimised afterwards.
+- Temporary files are deleted after a successful save. A recording that failed to save, or that you chose to finish later, stays listed so you can save or discard it.
+
+**Stays out of the way**
+- Lives in the notification area, and starts the way you left it: in the tray, minimised to the taskbar or open.
+- One self-contained executable with no installer. A portable mode keeps settings beside it.
+- Recent screenshots and videos are listed in the main window.
 
 ## Status
 
@@ -48,6 +85,8 @@ Settings → Capture → Recording mode chooses how video is captured and kept u
 
 The JPEG modes fall back to GDI when Desktop Duplication cannot capture the region (rotated displays, a region spanning two graphics adapters) and while it is unavailable (for example during a UAC prompt). JPEG quality defaults to 90. Every mode renders the final file with ffmpeg.
 
+With Settings → Capture → "Follow the mouse pointer while recording" on, the recorded region keeps the size you selected but moves with the pointer. The pointer can move around the middle half of the region without moving it; beyond that, the region follows with a critically damped spring, taking about 0.3 seconds to catch up, and stays within the screens. It does not move at the start of a recording, when the pointer is on the far corner, until the pointer moves further out. The red frame moves with it. Panning changes the whole picture, so JPEG delta stores more full frames while the region is moving.
+
 Screenshots go to the clipboard as a bitmap and as PNG. Settings has separate switches for including the mouse pointer in screenshots (off by default) and in videos (on by default); both are saved. A red frame outlines the region while recording; it sits outside the recorded pixels and can be turned off. When recording stops, Kino asks whether to include audio: click **Save with audio** or **Save without audio**, and the video is rendered and its path copied to the clipboard. Settings → Output → "When recording stops" can skip the question and always save with or without audio; the window then stays hidden unless saving fails. The preview window can be turned off in Settings → Capture. The same screen can change the format (MP4, MKV or WebM), which audio tracks are included and in what order, and the file name. After a successful save, all temporary video and audio is deleted. A failed or interrupted render keeps the recording for another attempt.
 
 ### Requirements
@@ -71,8 +110,8 @@ dotnet test Kino.slnx
 The executable has diagnostic modes that write reports instead of starting the tray application:
 
 - `Kino.exe --selftest-capture report.txt` captures, copies and saves a screenshot through the real workflow.
-- `Kino.exe --selftest-record report.txt --seconds 5 --size 1920x1080` records the top-left of the primary monitor in each recording mode (or one, with `--mode JpegDelta|Jpeg|Lossless`), renders every format with and without audio, verifies the streams with ffprobe and removes the temporary files. For the JPEG modes it also rebuilds the last frame from the temporary video and compares it with the screen.
-- `Kino.exe --snapshot page.png --page home|finish|settings|unfinished|recording` renders a page with synthetic content.
+- `Kino.exe --selftest-record report.txt --seconds 5 --size 1920x1080` records the top-left of the primary monitor in each recording mode (or one, with `--mode JpegDelta|Jpeg|Lossless`), renders every format with and without audio, verifies the streams with ffprobe and removes the temporary files. For the JPEG modes it also rebuilds the last frame from the temporary video and compares it with the screen. `--follow` turns on following and moves the real pointer during each recording to drive it.
+- `Kino.exe --snapshot page.png --page home|finish|settings|unfinished|recording` renders a page with synthetic content and placeholder folders. The screenshots above were made this way, with `--with-audio` for the finish page.
 
 `--data-root <folder>` keeps settings and recordings out of the per-user folder.
 
@@ -91,17 +130,17 @@ The tag sets the version (`v0.2.0-beta.1` becomes a pre-release). `./eng/Package
 
 On a Windows 10 machine with six monitors at mixed positions and ffmpeg N-91454 (2018):
 
-- 69 unit and integration tests, including the ported delta planner, the JPEG frame file and an ffmpeg render from it, including real MP4, MKV and WebM renders of synthetic media with two audio tracks in a chosen order.
+- 73 unit and integration tests, including the ported delta planner, the smoothing used to follow the pointer, the JPEG frame file and an ffmpeg render from it, including real MP4, MKV and WebM renders of synthetic media with two audio tracks in a chosen order.
 - The published single-file executable's screenshot and recording self-tests, including a region that reaches into the gap between monitors.
 - The interactive build driven by synthesized hotkeys: start in the tray, single-instance activation, close-to-tray, screenshot to clipboard, save and copy path, the corner preview's position on the main monitor, record, the audio prompt, and saving without audio with the video path copied.
 - 1920 × 1080 at 30 fps for 20 seconds with no repeated frames, on mostly static content.
 - Each recording mode at 1920 × 1080 and 30 fps for 10 seconds over constantly scrolling text with a moving shape, on Desktop Duplication: no dropped frames in any mode. Temporary video was about 24 MB for JPEG delta, 270 MB for JPEG and 18 MB for lossless; on a still screen, JPEG delta keeps a single frame.
 
-Not yet verified: audio capture from real devices (the test machine has no audio endpoints; the no-device path and gap filling are tested), busy-content and 30-minute recordings, display hot-plug during recording, trimmed or NativeAOT builds, and CI on GitHub-hosted runners.
+Not yet verified: following the pointer in the published executable (its self-test is written but has not run yet), audio capture from real devices (the test machine has no audio endpoints; the no-device path and gap filling are tested), busy-content and 30-minute recordings, display hot-plug during recording, trimmed or NativeAOT builds, and CI on GitHub-hosted runners.
 
 ## Not in the MVP
 
-The managed H.264 backend, a per-key shortcut editor, file browse dialogs, start with Windows, Linux, crop and trim, format conversion and uploads. See the [implementation plan](docs/plan.md).
+Saving videos without ffmpeg ([research notes](docs/research/2026-11-25-saving-without-ffmpeg.md)), a per-key shortcut editor, file browse dialogs, start with Windows, Linux, crop and trim, format conversion and uploads. See the [implementation plan](docs/plan.md).
 
 ## Documentation
 
@@ -110,6 +149,7 @@ The managed H.264 backend, a per-key shortcut editor, file browse dialogs, start
 - [Initial workflow decision](docs/decisions/2026-11-24-capture-workflow-and-audio.md)
 - [Recording and rendering decision](docs/decisions/2026-11-24-recording-and-rendering.md)
 - [MVP implementation choices](docs/decisions/2026-11-25-mvp-implementation-choices.md)
+- [Research: saving without ffmpeg](docs/research/2026-11-25-saving-without-ffmpeg.md)
 - [Third-party notices](THIRD-PARTY-NOTICES.md)
 
 ## License

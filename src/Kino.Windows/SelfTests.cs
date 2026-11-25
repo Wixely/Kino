@@ -12,7 +12,7 @@ namespace Kino.Windows;
 /// scripted pointer positions in place of the user's mouse. Results are written to a report file
 /// because a windowed executable has no console.
 /// </summary>
-internal static class SelfTests
+internal static partial class SelfTests
 {
     public static async Task<int> CaptureAsync(string reportPath, string? dataRoot)
     {
@@ -58,7 +58,7 @@ internal static class SelfTests
 
         // A region spanning the whole virtual screen reaches into any gaps between monitors.
         var whole = new WindowsCapturePlatform(shell).Capture(new PixelRect(screen.X, screen.Y, Math.Min(screen.Width, 4096), Math.Min(screen.Height, 4096)), includeCursor: false);
-        report.Add($"virtual-screen corner capture: {whole.Width} Ã— {whole.Height}");
+        report.Add($"virtual-screen corner capture: {whole.Width} Ãƒâ€” {whole.Height}");
 
         var passed = copied && saved && stillText && workflow.Phase == WorkflowPhase.Idle;
         report.Add(passed ? "PASS" : "FAIL");
@@ -74,11 +74,11 @@ internal static class SelfTests
     /// <summary>Records with each mode in <paramref name="modes"/> (all when null), renders every format
     /// with and without audio, and verifies the results.</summary>
     public static async Task<int> RecordAsync(string reportPath, double seconds, string? dataRoot, bool keepOutputs, int width = 640, int height = 480,
-        IReadOnlyList<RecordingMode>? modes = null)
+        IReadOnlyList<RecordingMode>? modes = null, bool follow = false)
     {
         var report = new List<string>();
         var root = Path.GetFullPath(dataRoot ?? Directory.CreateTempSubdirectory("kino-selftest-").FullName);
-        var settings = new KinoSettings { VideoFolder = Path.Combine(root, "videos") };
+        var settings = new KinoSettings { VideoFolder = Path.Combine(root, "videos"), FollowCursor = follow };
         var ffmpeg = new FfmpegState(() => settings);
         await ffmpeg.RefreshAsync();
         report.Add($"ffmpeg: {ffmpeg.Status}");
@@ -90,7 +90,8 @@ internal static class SelfTests
         }
 
         using var shell = new ShellThread();
-        using var feedback = new WindowsCaptureFeedback(shell);
+        using var windowsFeedback = new WindowsCaptureFeedback(shell);
+        var feedback = new ObservedFeedback(windowsFeedback);
         var platform = new ScriptedPlatform(new WindowsCapturePlatform(shell));
         var sessions = new RecordingSessionStore(() => Path.Combine(root, "recordings"));
         using var workflow = new CaptureWorkflow(platform, feedback, new WindowsScreenRecorder(() => ffmpeg.Tools, () => ffmpeg.Unavailable, () => settings),
@@ -99,8 +100,8 @@ internal static class SelfTests
         foreach (var mode in modes ?? Enum.GetValues<RecordingMode>())
         {
             settings.RecordingMode = mode;
-            report.Add($"== {mode}");
-            passed &= await RecordModeAsync(report, workflow, platform, sessions, tools, ffmpeg, settings, seconds, width, height);
+            report.Add($"== {mode}{(follow ? ", following the pointer" : "")}");
+            passed &= await RecordModeAsync(report, workflow, platform, feedback, sessions, tools, ffmpeg, settings, seconds, width, height);
         }
 
         report.Add(passed ? "PASS" : "FAIL");
@@ -113,13 +114,15 @@ internal static class SelfTests
         return passed ? 0 : 1;
     }
 
-    private static async Task<bool> RecordModeAsync(List<string> report, CaptureWorkflow workflow, ScriptedPlatform platform, RecordingSessionStore sessions,
-        FfmpegTools tools, FfmpegState ffmpeg, KinoSettings settings, double seconds, int width, int height)
+    private static async Task<bool> RecordModeAsync(List<string> report, CaptureWorkflow workflow, ScriptedPlatform platform, ObservedFeedback feedback,
+        RecordingSessionStore sessions, FfmpegTools tools, FfmpegState ffmpeg, KinoSettings settings, double seconds, int width, int height)
     {
         string? sessionDirectory = null;
         RecordingManifest? manifest = null;
         void OnFinished(string directory, RecordingManifest finished) => (sessionDirectory, manifest) = (directory, finished);
         workflow.RecordingFinished += OnFinished;
+        _ = Pointer.GetCursorPos(out var userPointer);
+        feedback.Reset();
         try
         {
             platform.Next = new PixelPoint(0, 0);
@@ -127,6 +130,12 @@ internal static class SelfTests
             await Task.Delay(300);
             // Inclusive corners one pixel larger than requested, so the even-size rounding is exercised too.
             platform.Next = new PixelPoint(width, height);
+            if (settings.FollowCursor)
+            {
+                // Following reads the real pointer, so it starts where the scripted second corner is.
+                _ = Pointer.SetCursorPos(width, height);
+            }
+
             await workflow.HandleAsync(ShortcutSlot.VideoStart);
             report.Add($"after key 5: {workflow.Phase}; {workflow.LastMessage}");
             if (workflow.Phase != WorkflowPhase.Recording)
@@ -135,13 +144,37 @@ internal static class SelfTests
                 return false;
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(seconds));
+            if (settings.FollowCursor)
+            {
+                // Sweeps the pointer down and right over half the recording, then holds it so the region
+                // settles before the end.
+                var sweep = TimeSpan.FromSeconds(seconds / 2);
+                var clock = Stopwatch.StartNew();
+                while (clock.Elapsed < sweep)
+                {
+                    var progress = clock.Elapsed / sweep;
+                    _ = Pointer.SetCursorPos(width + (int)(600 * progress), height + (int)(300 * progress));
+                    await Task.Delay(15);
+                }
+
+                _ = Pointer.SetCursorPos(width + 600, height + 300);
+                await Task.Delay(TimeSpan.FromSeconds(seconds) - sweep);
+            }
+            else
+            {
+                await Task.Delay(TimeSpan.FromSeconds(seconds));
+            }
+
             await workflow.HandleAsync(ShortcutSlot.StopRecording);
             report.Add($"after key 6: {workflow.Phase}; {workflow.LastMessage}");
         }
         finally
         {
             workflow.RecordingFinished -= OnFinished;
+            if (settings.FollowCursor)
+            {
+                _ = Pointer.SetCursorPos(userPointer.X, userPointer.Y);
+            }
         }
 
         if (manifest is null || sessionDirectory is null)
@@ -161,10 +194,20 @@ internal static class SelfTests
 
         var passed = manifest.LastError is null && Math.Abs(manifest.DurationSeconds - seconds) < 1.0 &&
             manifest.Region.Width == width && manifest.Region.Height == height;
+        var finalRegion = manifest.Region;
+        if (settings.FollowCursor)
+        {
+            // The frame moves with the region, so its moves show where the region went and how smoothly.
+            finalRegion = feedback.LastRegion ?? manifest.Region;
+            report.Add($"follow: {feedback.Moves} moves, largest step {feedback.LargestStep} px, from {manifest.Region} to {finalRegion}");
+            passed &= feedback.Moves > 10 && feedback.LargestStep <= 120 && finalRegion != manifest.Region &&
+                finalRegion.Width == manifest.Region.Width && finalRegion.Height == manifest.Region.Height;
+        }
+
         var stagingPath = Path.Combine(sessionDirectory, manifest.VideoFileName);
         if (manifest.VideoFormat == StagingFormat.JpegFrames)
         {
-            passed &= CheckFrameFile(report, stagingPath, manifest);
+            passed &= CheckFrameFile(report, stagingPath, manifest, finalRegion);
         }
         else
         {
@@ -206,10 +249,11 @@ internal static class SelfTests
         return passed;
     }
 
-    /// <summary>Reports what a JPEG frame file holds, and compares its rebuilt last frame with the screen
-    /// as it is now. The region is the top-left of the primary monitor, which rarely changes during the
-    /// test; JPEG at the default quality differs from the source by a few levels on average.</summary>
-    private static bool CheckFrameFile(List<string> report, string path, RecordingManifest manifest)
+    /// <summary>Reports what a JPEG frame file holds, and compares its rebuilt last frame with
+    /// <paramref name="finalRegion"/> of the screen as it is now. The region is near the top-left of the
+    /// primary monitor, which rarely changes during the test; JPEG at the default quality differs from
+    /// the source by a few levels on average.</summary>
+    private static bool CheckFrameFile(List<string> report, string path, RecordingManifest manifest, PixelRect finalRegion)
     {
         long full = 0;
         long patches = 0;
@@ -240,7 +284,7 @@ internal static class SelfTests
         }
 
         using var grabber = new GdiFrameGrabber(manifest.Region.Width, manifest.Region.Height);
-        var screen = grabber.Grab(manifest.Region.X, manifest.Region.Y, includeCursor: false);
+        var screen = grabber.Grab(finalRegion.X, finalRegion.Y, includeCursor: false);
         long difference = 0;
         for (var index = 0; index < screen.Length; index++)
         {
@@ -254,6 +298,72 @@ internal static class SelfTests
         report.Add(string.Create(CultureInfo.InvariantCulture,
             $"frame file: {new FileInfo(path).Length / 1024} KB, {full} full, {patches} patches ({scrolls} with a scroll copy, {(patches == 0 ? 0 : patchBytes / patches / 1024)} KB on average), {manifest.FramesWritten - full - patches} slots without a record, last slot {lastSlot}; rebuilt last frame vs screen: mean difference {mean:0.00} levels"));
         return full >= 1 && lastSlot < manifest.FramesWritten && mean < 12;
+    }
+
+    /// <summary>Passes feedback through, remembering where the recording frame was moved.</summary>
+    private sealed class ObservedFeedback(ICaptureFeedback inner) : ICaptureFeedback
+    {
+        private readonly Lock _lock = new();
+        private PixelRect? _last;
+
+        public int Moves { get; private set; }
+        public int LargestStep { get; private set; }
+        public PixelRect? LastRegion { get { lock (_lock) return _last; } }
+
+        public void Reset()
+        {
+            lock (_lock)
+            {
+                (_last, Moves, LargestStep) = (null, 0, 0);
+            }
+        }
+
+        public void ShowSelection(SelectionKind kind, PixelPoint firstCorner, string nextStep) => inner.ShowSelection(kind, firstCorner, nextStep);
+        public void HideSelection() => inner.HideSelection();
+
+        public void ShowRecordingFrame(PixelRect region)
+        {
+            lock (_lock) _last = region;
+            inner.ShowRecordingFrame(region);
+        }
+
+        public void MoveRecordingFrame(PixelRect region)
+        {
+            lock (_lock)
+            {
+                if (_last is { } previous)
+                {
+                    LargestStep = Math.Max(LargestStep, Math.Max(Math.Abs(region.X - previous.X), Math.Abs(region.Y - previous.Y)));
+                }
+
+                _last = region;
+                Moves++;
+            }
+
+            inner.MoveRecordingFrame(region);
+        }
+
+        public void HideRecordingFrame() => inner.HideRecordingFrame();
+        public void Notify(string title, string message) => inner.Notify(title, message);
+    }
+
+    /// <summary>Moves the real pointer for the follow test.</summary>
+    private static partial class Pointer
+    {
+        [System.Runtime.InteropServices.LibraryImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        public static partial bool SetCursorPos(int x, int y);
+
+        [System.Runtime.InteropServices.LibraryImport("user32.dll")]
+        [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+        public static partial bool GetCursorPos(out PointerPosition point);
+    }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct PointerPosition
+    {
+        public int X;
+        public int Y;
     }
 
     /// <summary>The real platform, except that pointer positions come from the test script.</summary>

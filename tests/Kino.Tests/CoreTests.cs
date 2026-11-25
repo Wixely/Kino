@@ -245,6 +245,7 @@ public sealed class SettingsTests
                 ShowRecordingFrame = false,
                 IncludeCursor = false,
                 IncludeCursorInScreenshots = true,
+                FollowCursor = true,
                 ShowCornerPreview = false,
                 AfterRecording = AfterRecording.SaveWithoutAudio,
                 WindowPlacement = WindowPlacement.Taskbar,
@@ -260,6 +261,7 @@ public sealed class SettingsTests
             Assert.False(loaded.ShowRecordingFrame);
             Assert.False(loaded.IncludeCursor);
             Assert.True(loaded.IncludeCursorInScreenshots);
+            Assert.True(loaded.FollowCursor);
             Assert.False(loaded.ShowCornerPreview);
             Assert.Equal(AfterRecording.SaveWithoutAudio, loaded.AfterRecording);
             Assert.Equal(WindowPlacement.Taskbar, loaded.WindowPlacement);

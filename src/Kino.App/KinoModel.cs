@@ -94,6 +94,12 @@ public sealed partial class KinoModel
         set => Update(() => _settings.IncludeCursor = value);
     }
 
+    public bool FollowCursor
+    {
+        get => _settings.FollowCursor;
+        set => Update(() => _settings.FollowCursor = value);
+    }
+
     public bool IncludeCursorInScreenshots
     {
         get => _settings.IncludeCursorInScreenshots;

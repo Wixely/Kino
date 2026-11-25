@@ -252,6 +252,7 @@ public sealed class WorkflowTests : IDisposable
         public void ShowSelection(SelectionKind kind, PixelPoint firstCorner, string nextStep) => SelectionShown = kind;
         public void HideSelection() => SelectionShown = null;
         public void ShowRecordingFrame(PixelRect region) => Frame = region;
+        public void MoveRecordingFrame(PixelRect region) => Frame = region;
         public void HideRecordingFrame() => Frame = null;
         public void Notify(string title, string message) => LastNotification = $"{title}: {message}";
     }
@@ -278,6 +279,8 @@ public sealed class WorkflowTests : IDisposable
         private sealed class FakeActive(RecordingManifest manifest) : IActiveRecording
         {
             public TimeSpan Elapsed => TimeSpan.FromSeconds(1.5);
+
+            public event Action<PixelRect>? RegionMoved { add { } remove { } }
 
             public Task StopAsync()
             {

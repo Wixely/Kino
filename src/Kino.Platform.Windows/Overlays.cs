@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using SkiaSharp;
 
 namespace Kino.Platform.Windows;
@@ -197,9 +198,21 @@ internal sealed class RecordingFrame : IDisposable
 {
     private static readonly nint RedBrush = Native.CreateSolidBrush(0x002020E0);
     private readonly FrameEdge[] _edges = [new(), new(), new(), new()];
+    private bool _shown;
+
+    /// <summary>Moves the frame if it is shown. A move that arrives after <see cref="Hide"/> is
+    /// ignored.</summary>
+    public void Move(PixelRect region)
+    {
+        if (_shown)
+        {
+            Show(region);
+        }
+    }
 
     public void Show(PixelRect region)
     {
+        _shown = true;
         var (_, scale) = Native.MonitorAt(new PixelPoint(region.X, region.Y));
         var t = Math.Max(2, (int)MathF.Round(3 * scale));
         PixelRect[] rectangles =
@@ -219,6 +232,7 @@ internal sealed class RecordingFrame : IDisposable
 
     public void Hide()
     {
+        _shown = false;
         foreach (var edge in _edges)
         {
             _ = Native.ShowWindow(edge.Handle, Native.SwHide);
@@ -427,6 +441,7 @@ public sealed class WindowsCaptureFeedback : ICaptureFeedback, IDisposable
     private readonly ShellThread _shell;
     private readonly CornerPreview _preview;
     private readonly RecordingFrame _frame;
+    private StrongBox<PixelRect>? _pendingMove;
 
     public WindowsCaptureFeedback(ShellThread shell)
     {
@@ -443,6 +458,22 @@ public sealed class WindowsCaptureFeedback : ICaptureFeedback, IDisposable
     public void HideSelection() => _shell.Invoke(_preview.Hide);
 
     public void ShowRecordingFrame(PixelRect region) => _shell.Invoke(() => _frame.Show(region));
+
+    // Called every frame while following the pointer. Only the newest region is kept, so a busy shell
+    // thread applies one move instead of a backlog.
+    public void MoveRecordingFrame(PixelRect region)
+    {
+        if (Interlocked.Exchange(ref _pendingMove, new StrongBox<PixelRect>(region)) is null)
+        {
+            _shell.Post(() =>
+            {
+                if (Interlocked.Exchange(ref _pendingMove, null) is { } move)
+                {
+                    _frame.Move(move.Value);
+                }
+            });
+        }
+    }
 
     public void HideRecordingFrame() => _shell.Invoke(_frame.Hide);
 

@@ -26,8 +26,10 @@ if (ArgumentValue(args, "--selftest-record") is { Length: > 0 } recordReport)
     var size = (ArgumentValue(args, "--size") ?? "640x480").Split('x');
     // --mode JpegDelta|Jpeg|Lossless limits the run to one recording mode; all are tested by default.
     var modes = ArgumentValue(args, "--mode") is { } mode ? new[] { Enum.Parse<RecordingMode>(mode, ignoreCase: true) } : null;
+    // --follow records with the region following the pointer, and moves the real pointer to drive it.
     return await SelfTests.RecordAsync(Path.GetFullPath(recordReport), seconds, dataRoot, args.Contains("--keep-outputs"),
-        int.Parse(size[0], System.Globalization.CultureInfo.InvariantCulture), int.Parse(size[1], System.Globalization.CultureInfo.InvariantCulture), modes);
+        int.Parse(size[0], System.Globalization.CultureInfo.InvariantCulture), int.Parse(size[1], System.Globalization.CultureInfo.InvariantCulture), modes,
+        args.Contains("--follow"));
 }
 
 var executableDirectory = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
@@ -144,10 +146,13 @@ byte[] ReadIcon()
 // Renders a page without a window, for checking the UI with synthetic content.
 int RenderSnapshot(string path)
 {
-    var model = new KinoModel(settings) { StoragePath = storage.Root };
+    // Placeholder folders, so snapshots never show the local user's paths.
+    settings.ImageFolder = @"C:\Users\You\Pictures\Kino";
+    settings.VideoFolder = @"C:\Users\You\Videos\Kino";
+    var model = new KinoModel(settings) { StoragePath = @"C:\Users\You\AppData\Local\Kino" };
     using var snapshotShellless = new CaptureWorkflow(new NullPlatform(), new NullFeedback(), new NullRecorder(), sessions, () => settings);
     using var app = new KinoApp(model, snapshotShellless, sessions, settingsStore, new SnapshotHost());
-    model.FfmpegStatus = "Rendering with ffmpeg N-91454 (synthetic)";
+    model.FfmpegStatus = "Rendering with ffmpeg 7.1";
     model.FfmpegClass = "ok";
     model.RecentRows = [new("Kino 2026-11-24 10-15-02.png", @"C:\Pictures\Kino\Kino 2026-11-24 10-15-02.png", "Image"), new("Kino 2026-11-24 10-12-40.mp4", @"C:\Videos\Kino\Kino 2026-11-24 10-12-40.mp4", "Video")];
     model.Status = "Copied a 640 × 360 screenshot.";
@@ -186,7 +191,8 @@ int RenderSnapshot(string path)
     }
 
     var width = 680;
-    var height = 780;
+    // --height shows more of a long page, such as settings, without scrolling.
+    var height = int.TryParse(ArgumentValue(args, "--height"), System.Globalization.CultureInfo.InvariantCulture, out var requested) ? requested : 780;
     var document = app.CreateDocument();
     var renderer = new HeadlessRenderer(width, height);
     using var image = renderer.RenderFrames(2, context =>
@@ -247,6 +253,7 @@ internal sealed class NullFeedback : ICaptureFeedback
     public void ShowSelection(SelectionKind kind, PixelPoint firstCorner, string nextStep) { }
     public void HideSelection() { }
     public void ShowRecordingFrame(PixelRect region) { }
+    public void MoveRecordingFrame(PixelRect region) { }
     public void HideRecordingFrame() { }
     public void Notify(string title, string message) { }
 }

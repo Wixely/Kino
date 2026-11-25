@@ -46,6 +46,10 @@ public interface ICaptureFeedback
     void ShowSelection(SelectionKind kind, PixelPoint firstCorner, string nextStep);
     void HideSelection();
     void ShowRecordingFrame(PixelRect region);
+
+    /// <summary>Moves a shown recording frame. Called from the capture thread when the region follows
+    /// the pointer, so it must not block; it has no effect once the frame is hidden.</summary>
+    void MoveRecordingFrame(PixelRect region);
     void HideRecordingFrame();
     void Notify(string title, string message);
 }
@@ -63,6 +67,9 @@ public interface IScreenRecorder
 public interface IActiveRecording
 {
     TimeSpan Elapsed { get; }
+
+    /// <summary>Raised from the capture thread when the region moves to follow the pointer.</summary>
+    event Action<PixelRect>? RegionMoved;
 
     /// <summary>Stops capture and finalises the temporary files, updating the manifest's duration,
     /// frame counts and audio offsets.</summary>
@@ -356,13 +363,15 @@ public sealed class CaptureWorkflow : IDisposable
         if (settings.ShowRecordingFrame)
         {
             _feedback.ShowRecordingFrame(region);
+            _activeRecording.RegionMoved += _feedback.MoveRecordingFrame;
         }
 
         var stop = settings.Shortcuts[ShortcutSlot.StopRecording];
         var problems = manifest.AudioTracks.Where(track => track.Problem is not null).Select(track => $"{track.Label} ({track.Problem!.TrimEnd('.')})").ToArray();
+        var what = $"{region.Width} × {region.Height}{(settings.FollowCursor ? " following the pointer" : "")}";
         Report(problems.Length == 0
-            ? $"Recording {region.Width} × {region.Height}. Press {stop} to stop."
-            : $"Recording {region.Width} × {region.Height} without {string.Join("; ", problems)}. Press {stop} to stop.");
+            ? $"Recording {what}. Press {stop} to stop."
+            : $"Recording {what} without {string.Join("; ", problems)}. Press {stop} to stop.");
     }
 
     private async Task StopRecordingAsync()

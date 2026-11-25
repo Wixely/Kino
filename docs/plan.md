@@ -197,7 +197,7 @@ M1 and M2 exit conditions not yet met: mixed-DPI and display hot-plug tests, aud
 2. Agent: verify system-audio and microphone capture on a machine with audio devices, including A/V alignment against the 100 ms target.
 3. Agent: run a 30-minute recording with busy content, measure staging bitrate and disk use, and test display changes during recording.
 4. Agent: evaluate trimming and NativeAOT against the untrimmed baseline (52 MB single file).
-5. Agent: prepare the managed-backend spike (M3) and the shared-capture package boundary (M4).
+5. Agent: prepare the shared-capture package boundary (M4). The managed-backend spike (M3) is done and parked; see [saving without FFmpeg](research/2026-11-25-saving-without-ffmpeg.md).
 
 ## Open questions
 
